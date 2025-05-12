@@ -6,7 +6,7 @@ ssl._create_default_https_context = ssl._create_unverified_context
 
 st.title("📈 삼성전자 가격 데이터 테스트")
 
-name = '005930.KS'
+name = 'SQQQ'
 ticker = yf.Ticker(name)
 df = ticker.history(interval='1d', period='5y', auto_adjust=False)
 
