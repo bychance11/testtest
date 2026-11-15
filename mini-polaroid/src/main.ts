@@ -76,6 +76,7 @@ $<HTMLSelectElement>("orientation").addEventListener("change", (e) => setOptions
 $<HTMLSelectElement>("emptyMode").addEventListener("change", (e) => setOptions({ emptyMode: (e.target as HTMLSelectElement).value as EmptyMode }));
 $<HTMLSelectElement>("dpi").addEventListener("change", (e) => setOptions({ dpi: Number((e.target as HTMLSelectElement).value) as Dpi }));
 $<HTMLSelectElement>("frameColor").addEventListener("change", (e) => setOptions({ frameColor: (e.target as HTMLSelectElement).value }));
+$<HTMLInputElement>("rulerTicks").addEventListener("change", (e) => setOptions({ rulerTicks: (e.target as HTMLInputElement).checked }));
 $<HTMLInputElement>("cutLines").addEventListener("change", (e) => setOptions({ showCutLines: (e.target as HTMLInputElement).checked }));
 $<HTMLInputElement>("photoEdge").addEventListener("change", (e) => setOptions({ photoEdge: (e.target as HTMLInputElement).checked }));
 

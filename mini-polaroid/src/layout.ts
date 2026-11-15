@@ -14,7 +14,8 @@ export const PRESETS: Preset[] = [
 ];
 
 export const PAGE_IN = { short: 4, long: 6 };  // 4x6 inch
-export const MARGIN_MM = 3;      // 인쇄 한 장 바깥쪽 안전여백 (키오스크 재단 대비)
+export const MARGIN_MM = 5;      // 인쇄 한 장 바깥쪽 안전여백. 자 맞춤선(5mm)이 들어갈 자리이자 키오스크 재단 대비
+export const TICK_MM = 5;        // 자 맞춤선 길이: 종이 가장자리에서 안쪽으로 0.5cm
 export const GUTTER_MM = 0;      // 폴라로이드 사이 간격 없음 — 각 칸의 흰 테두리가 곧 재단 여유
 export const CELL_RATIO = 1.2;   // 폴라로이드 세로/가로 (실물 88×107mm ≈ 1.216)
 export const SIDE_FRAC = 0.05;   // 좌/우/상 테두리 = 셀 가로의 5%  → 하단 여백 = 25%
@@ -27,6 +28,7 @@ export interface Layout {
   pageW: number; pageH: number;
   cols: number; rows: number;
   cellW: number; cellH: number;
+  margin: number;   // 바깥 안전여백 px
   border: number;   // 좌/우/상 테두리 px
   img: number;      // 정사각 사진 한 변 px
   cells: { x: number; y: number }[];
@@ -63,5 +65,5 @@ export function computeLayout(preset: Preset, orientation: Orientation, dpi: Dpi
     y: y0 + Math.floor(i / cols) * (cellH + gutter),
   }));
 
-  return { dpi, pageW, pageH, cols, rows, cellW, cellH, border, img, cells };
+  return { dpi, pageW, pageH, cols, rows, cellW, cellH, margin, border, img, cells };
 }

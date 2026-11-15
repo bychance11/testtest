@@ -17,6 +17,7 @@ const state: AppState = {
     dpi: 300,
     emptyMode: "blank",
     showCutLines: false,
+    rulerTicks: true,
     frameColor: "#ffffff",
     photoEdge: true,
   },
