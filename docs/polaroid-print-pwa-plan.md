@@ -11,8 +11,11 @@
 | 항목 | 결정 | 이유 |
 |---|---|---|
 | 배포 형태 | PWA (manifest + service worker), 정적 호스팅 | 설치 불필요, 홈 화면 추가 가능, 오프라인 동작 |
-| 처리 위치 | 100% 클라이언트(Canvas) | 사진이 서버로 안 나감(개인정보), 서버 비용 0 |
-| 호스팅 | GitHub Pages / Cloudflare Pages / Vercel 중 하나 | HTTPS 필수(PWA 조건), 무료 |
+| 처리 위치 | 합성은 100% 클라이언트(Canvas) | 사진 원본이 서버로 안 나감(개인정보), 서버 비용 최소 |
+| 호스팅 | **Netlify** (루트 `netlify.toml`, base=`mini-polaroid/`) | HTTPS 자동, 환경변수 UI, 무료 |
+| 백엔드 | **Supabase** (익명 로그인 + Storage 비공개 버킷 + `sheets` 테이블) | 완성된 시트 JPEG 만 선택적으로 보관. 원본 사진은 업로드하지 않음 |
+| 앱 이름 | **미니폴라로이드 인쇄** (짧은 이름: 미니폴라) | manifest `name` / `short_name` |
+| 아이콘 | 자동 생성(검정 배경 + 폴라로이드 카드) 192/512/maskable/180 | `public/icons/` — 나중에 교체 가능 |
 | 출력 규격 | 4x6인치 = 102×152mm, **1200×1800px (300dpi)**, 비율 정확히 2:3 | 국내 인화 키오스크·포토몬/찍스/스냅스 등 표준. 비율이 틀리면 잘림 |
 | 고해상도 옵션 | 2400×3600px (600dpi) | 손톱 크기 사진은 600dpi가 선명함. 가정용 잉크젯·고급 인화용 |
 | 출력 포맷 | JPEG(q 0.92, sRGB) 기본, PDF 선택 | 인화소 업로드는 JPEG, 집에서 인쇄는 PDF/`window.print()` |
@@ -22,30 +25,31 @@
 
 ## 2. 레이아웃 수치 (4x6 세로, 1200×1800px, 300dpi)
 
-**설계 파라미터**
-- 바깥 안전여백: 3mm(36px) — 인화 키오스크는 "꽉 채움(fill)" 모드에서 가장자리 1.5~2mm를 잘라냄
-- 폴라로이드 간 간격(거터): 2mm(24px) — 자를 때 가위 들어갈 공간, 선택 시 재단선 표시
+**설계 파라미터** (결정: 안전여백은 인쇄 한 장의 **바깥쪽에만**, 폴라로이드 사이 간격은 0)
+- 바깥 안전여백: 3mm(36px) — 인화 키오스크가 "꽉 채움" 모드에서 가장자리 1.5~2mm를 잘라내도 폴라로이드가 다치지 않음
+- 폴라로이드 사이 간격: **0mm** — 칸끼리 맞닿음. 각 칸의 흰 테두리가 곧 재단 여유라 가위로 경계선을 따라 자르면 됨. 재단선(점선) 표시는 옵션
 - 폴라로이드 비율: **가로 1 : 세로 1.2** (실제 폴라로이드 88×107mm ≈ 1:1.216)
 - 사진은 **정사각형**, 좌/우/위 테두리 = 셀 가로의 5%, 아래 여백 = 셀 가로의 25% (두꺼운 하단)
+- 격자는 항상 페이지 중앙 정렬 (남는 공간은 위아래/좌우로 균등 분배)
 
 | 장수 | 격자(열×행) | 셀 크기 px | 셀 크기 mm | 사진 한 변 | 하단 여백 |
 |---|---|---|---|---|---|
-| 6 | 2×3 | 467×560 | 39.5×47.4 | 35.6mm | 9.9mm |
-| 9 | 3×3 | 360×432 | 30.5×36.6 | 27.4mm | 7.6mm |
-| **12** | 3×4 | 345×414 | 29.2×35.1 | 26.3mm | 7.3mm |
-| **16** | 4×4 | 264×317 | 22.4×26.8 | **20.1mm (손톱 크기)** | 5.6mm |
-| 20 | 4×5 | 264×317 | 22.4×26.8 | 20.1mm | 5.6mm |
-| 24 | 4×6 | 223×268 | 18.9×22.7 | 17.0mm | 4.7mm |
-| 30 | 5×6 | 206×248 | 17.5×21.0 | 15.7mm | 4.4mm |
+| 6 | 2×3 | 480×576 | 40.6×48.8 | 36.6mm | 10.2mm |
+| 9 | 3×3 | 376×451 | 31.8×38.2 | 28.7mm | 8.0mm |
+| **12** | 3×4 | 360×432 | 30.5×36.6 | 27.4mm | 7.6mm |
+| **16** | 4×4 | 282×338 | 23.9×28.7 | **21.5mm (손톱 크기)** | 6.0mm |
+| 20 | 4×5 | 282×338 | 23.9×28.7 | 21.5mm | 6.0mm |
+| 24 | 4×6 | 240×288 | 20.3×24.4 | 18.3mm | 5.1mm |
+| 30 | 5×6 | 226×271 | 19.1×22.9 | 17.2mm | 4.8mm |
 
 - 20장은 16장과 같은 셀 크기(열 수가 같고 세로 여유가 있음). 격자 아래 남는 공간은 중앙 정렬.
 - 가로(6x4) 모드도 같은 함수로 계산 가능 — 열·행만 바꿈.
-- 숫자는 모두 하나의 함수 `fitGrid(cols, rows)`에서 나오므로 프리셋 추가가 쉬움.
+- 숫자는 모두 하나의 함수 `computeLayout()`에서 나오므로 프리셋 추가가 쉬움. (구현: `mini-polaroid/src/layout.ts`)
 
 ```ts
-// layout.ts 핵심 계산
+// layout.ts 핵심 계산 (개념 코드 — 실제 구현은 mini-polaroid/src/layout.ts)
 const PAGE = { w: 1200, h: 1800 };          // 300dpi 4x6 세로
-const MARGIN = 36, GUTTER = 24;             // 3mm, 2mm
+const MARGIN = 36, GUTTER = 0;              // 바깥 3mm, 칸 사이 0
 const RATIO = 1.2, SIDE = 0.05;             // 셀 비율, 테두리 비율
 
 export function fitGrid(cols: number, rows: number) {
@@ -120,31 +124,50 @@ export function fitGrid(cols: number, rows: number) {
 
 ---
 
+## 4-1. Supabase 역할과 설계
+
+**원칙**: 사진 원본은 절대 업로드하지 않는다. 합성은 폰에서 끝내고, 사용자가 "클라우드에 보관"을 눌렀을 때 **완성된 시트 JPEG 1장만** 올린다.
+
+| 구성 | 내용 |
+|---|---|
+| Auth | **Anonymous sign-ins** (대시보드에서 켜야 함). 가입 없이 기기별 익명 계정. 나중에 이메일/카카오 연결로 승격 가능 |
+| Storage | 비공개 버킷 `sheets`, 경로 `{user_id}/{sheet_id}.jpg`, JPEG 만 허용, 15MB 제한. 열람은 10분짜리 signed URL |
+| DB | `public.sheets` (preset, orientation, dpi, photo_count, storage_path, created_at). RLS 로 본인 행만 읽기/쓰기/삭제 |
+| 환경변수 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` — 없으면 클라우드 UI 가 숨겨지고 앱은 오프라인 모드로 정상 동작 (번들에서도 supabase-js 가 빠짐) |
+| 마이그레이션 | `mini-polaroid/supabase/migrations/0001_sheets.sql` 을 SQL Editor 에 실행 |
+
+**왜 익명 로그인인가**: 인쇄용 앱은 계정 만들기가 가장 큰 이탈 지점. 익명으로 시작하고, "다른 기기에서도 보기"가 필요한 사용자만 이메일을 연결하게 한다.
+
+**주의**: 익명 계정은 브라우저 저장소를 지우면 복구 불가. 보관함은 "임시 보관" 성격임을 UI 에 명시할 것.
+
+---
+
 ## 5. 프로젝트 구조
 
 ```
-polaroid-print/
-├─ index.html                 # 단일 페이지, 뷰포트/apple 메타 포함
-├─ manifest.webmanifest       # name, icons, display: standalone, theme_color
-├─ vite.config.ts             # vite-plugin-pwa (service worker 자동 생성)
-├─ public/
-│  └─ icons/                  # 192, 512, apple-touch-icon 180, maskable
-└─ src/
-   ├─ main.ts                 # 부트스트랩, 화면 라우팅(선택→배치→결과 3단계)
-   ├─ state.ts                # 앱 상태: photos[], preset, options, 순서 (단순 스토어)
-   ├─ layout.ts               # fitGrid(), 프리셋 테이블, mm↔px 변환
-   ├─ photo-picker.ts         # <input multiple> 처리, HEIC 감지 → 지연 변환
-   ├─ image-loader.ts         # createImageBitmap 축소 디코드, EXIF 회전, 썸네일/인쇄용 2단계
-   ├─ polaroid.ts             # 폴라로이드 1칸 그리기(흰 테두리, 정사각 cover 크롭, 하단 여백, 캡션)
-   ├─ render.ts               # 시트 합성: 미리보기(저해상) / 최종(1200×1800 또는 2400×3600)
-   ├─ jpeg-dpi.ts             # JPEG Blob에 300dpi 메타 삽입
-   ├─ export.ts               # navigator.share → a[download] → img 폴백, window.print()
-   ├─ install-guide.ts        # iOS "홈 화면에 추가" 안내, Android beforeinstallprompt
-   └─ ui/
-      ├─ PhotoGrid.ts         # 선택된 사진 썸네일, 드래그 정렬, 삭제
-      ├─ PresetBar.ts         # 9/12/16/20/24, 세로/가로, 빈칸 옵션
-      ├─ CropEditor.ts        # 한 장 확대 → 정사각 영역 드래그 조정
-      └─ Preview.ts           # 캔버스 미리보기(핀치 줌)
+testtest/
+├─ netlify.toml                  # base=mini-polaroid, publish=dist, SPA 리다이렉트, sw.js no-cache
+├─ docs/polaroid-print-pwa-plan.md
+└─ mini-polaroid/
+   ├─ index.html                 # 단일 페이지(선택→배치→미리보기/저장), apple 메타, 크롭 dialog
+   ├─ vite.config.ts             # vite-plugin-pwa: manifest(미니폴라로이드 인쇄) + service worker
+   ├─ .env.example               # VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY
+   ├─ public/icons/              # 192, 512, 512-maskable, apple-touch-icon(180)
+   ├─ supabase/migrations/0001_sheets.sql
+   └─ src/
+      ├─ main.ts                 # UI 바인딩, 미리보기 스케줄, 저장/인쇄/클라우드 버튼
+      ├─ types.ts                # Photo, Crop, SheetOptions
+      ├─ state.ts                # 상태 스토어(사진 목록, 옵션, 순서 교환, 칸 배정 assignSlots)
+      ├─ layout.ts               # PRESETS, computeLayout(): 바깥여백 3mm, 간격 0, 비율 1.2
+      ├─ image-loader.ts         # HEIC 지연 변환, <img> 디코드(EXIF 자동), 썸네일/인쇄용 축소, 순차 처리
+      ├─ polaroid.ts             # 한 칸 그리기(프레임, 정사각 cover 크롭, 둘레선), 재단선
+      ├─ render.ts               # drawSheet(scale) 공용 → 미리보기 / OffscreenCanvas 최종 JPEG
+      ├─ jpeg-dpi.ts             # JFIF 밀도 300/600dpi 기록
+      ├─ export.ts               # navigator.share → a[download] → 길게누르기 폴백, window.print 4x6
+      ├─ supabase.ts             # 익명 세션, uploadSheet/listSheets/signedUrl/deleteSheet
+      ├─ install-guide.ts        # iOS 수동 안내 / Android beforeinstallprompt
+      ├─ style.css
+      └─ ui/CropEditor.ts        # 드래그 + 확대로 정사각 크롭 위치 조정
 ```
 
 ### 데이터 모델
@@ -190,18 +213,19 @@ interface Sheet {
 2. 사진 영역: `(x+border, y+border, img, img)` 정사각.
 3. 사진은 `cover` 방식으로 정사각에 맞춤 + `crop.cx/cy/zoom` 반영. `drawImage(src, sx, sy, sw, sh, dx, dy, img, img)`.
 4. 사진 둘레에 아주 얇은 회색(#ddd) 1px 선 — 흰 배경에서 사진 경계가 보이게. 선택 옵션.
-5. 캡션: 하단 여백 가운데, 폰트 크기 = `cellW * 0.09`, 색 `#444`.
-6. 재단선 옵션: 셀 바깥 거터 중앙에 `#bbb` 점선.
+5. 캡션(2차): 하단 여백 가운데, 폰트 크기 = `cellW * 0.09`, 색 `#444`.
+6. 재단선 옵션: 칸 사이 간격이 0 이므로 **공유 경계선 위에** 옅은 점선.
 
 ---
 
 ## 7. 준비 / 확인 체크리스트
 
-- [ ] 도메인 또는 GitHub Pages 주소(HTTPS)
-- [ ] 아이콘 이미지 1장(1024px 정사각) → 192/512/180 자동 생성
-- [ ] 앱 이름(한글 노출 이름 + 짧은 이름 12자 이내)
+- [x] 호스팅: Netlify (저장소 연결 후 환경변수 2개 등록)
+- [x] 아이콘: 임시 자동 생성본 적용 (추후 교체 시 `public/icons/` 4개 파일만 바꾸면 됨)
+- [x] 앱 이름: 미니폴라로이드 인쇄 / 미니폴라
+- [ ] Supabase 프로젝트 생성 → SQL 실행 → Anonymous sign-ins 켜기 → URL/anon key 를 Netlify 환경변수로
 - [ ] 실기기 테스트: iPhone Safari(HEIC·회전·share), Android Chrome(HEIC 원본·install prompt)
-- [ ] 실제 인화 테스트 1회: 키오스크 "노컷/여백 맞춤" vs "꽉 채움" 결과 비교 → 안전여백 3mm 조정
+- [ ] 실제 인화 테스트 1회: 키오스크 "노컷/여백 맞춤" vs "꽉 채움" 결과 비교 → 바깥 안전여백 3mm 조정 (`layout.ts` 의 `MARGIN_MM`)
 - [ ] 16장 시트 600dpi까지 메모리 안정성 (저가 안드로이드 기준)
 - [ ] 캡션용 한글 폰트 라이선스(배포 가능 여부)
 

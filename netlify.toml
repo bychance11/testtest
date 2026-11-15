@@ -1,0 +1,30 @@
+[build]
+  base    = "mini-polaroid"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# SPA: 모든 경로를 index.html 로
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# service worker / manifest 는 항상 최신으로
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Content-Type = "application/manifest+json"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

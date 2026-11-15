@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>미니폴라로이드 인쇄</title>
+  <meta name="theme-color" content="#222222" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="미니폴라" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <header class="top">
+    <h1>미니폴라로이드 인쇄</h1>
+    <span class="sub">4×6 한 장에 폴라로이드 모아찍기</span>
+  </header>
+
+  <div id="installBanner" class="banner" hidden>
+    <span id="installText"></span>
+    <button id="installBtn" class="btn small" hidden>설치</button>
+    <button class="btn ghost small" data-dismiss>닫기</button>
+  </div>
+
+  <main>
+    <!-- 1. 사진 선택 -->
+    <section class="card">
+      <div class="row between">
+        <h2>1. 사진 선택</h2>
+        <span id="photoCount" class="muted">0장</span>
+      </div>
+      <label class="btn primary block">
+        사진 고르기
+        <input id="fileInput" type="file" accept="image/*" multiple hidden />
+      </label>
+      <p id="progress" class="muted small" hidden></p>
+      <div id="photoGrid" class="thumbs"></div>
+      <p class="hint">사진을 탭해 선택 → 다른 사진을 탭하면 순서가 바뀝니다. ✂ 버튼으로 잘라낼 위치를 조정해요.</p>
+      <button id="clearBtn" class="btn ghost small" hidden>모두 지우기</button>
+    </section>
+
+    <!-- 2. 배치 -->
+    <section class="card">
+      <h2>2. 배치</h2>
+      <div id="presetBar" class="chips"></div>
+      <div class="opts">
+        <label>방향
+          <select id="orientation">
+            <option value="portrait">세로 (4×6)</option>
+            <option value="landscape">가로 (6×4)</option>
+          </select>
+        </label>
+        <label>빈 칸
+          <select id="emptyMode">
+            <option value="blank">빈 폴라로이드</option>
+            <option value="repeat">사진 반복</option>
+            <option value="duplicate-first">첫 사진으로 전부 채움</option>
+          </select>
+        </label>
+        <label>해상도
+          <select id="dpi">
+            <option value="300">300dpi (인화소 표준)</option>
+            <option value="600">600dpi (고화질)</option>
+          </select>
+        </label>
+        <label>프레임 색
+          <select id="frameColor">
+            <option value="#ffffff">흰색</option>
+            <option value="#fbf6e9">크림</option>
+            <option value="#1a1a1a">검정</option>
+          </select>
+        </label>
+        <label class="check"><input id="cutLines" type="checkbox" /> 재단선 표시</label>
+        <label class="check"><input id="photoEdge" type="checkbox" checked /> 사진 둘레 얇은 선</label>
+      </div>
+      <p id="sizeInfo" class="muted small"></p>
+    </section>
+
+    <!-- 3. 미리보기 & 저장 -->
+    <section class="card">
+      <h2>3. 미리보기 &amp; 저장</h2>
+      <div id="previewWrap" class="preview"><canvas id="preview"></canvas></div>
+      <div class="actions">
+        <button id="saveBtn" class="btn primary">사진앱에 저장 / 공유</button>
+        <button id="printBtn" class="btn">집 프린터로 인쇄</button>
+        <button id="cloudBtn" class="btn" hidden>클라우드에 보관</button>
+      </div>
+      <p id="status" class="muted small"></p>
+      <div id="fallbackWrap" hidden>
+        <p class="hint">아래 이미지를 길게 눌러 "이미지 저장"을 선택하세요.</p>
+        <img id="fallbackImg" alt="결과" />
+      </div>
+      <details class="tip">
+        <summary>인화소에 맡길 때</summary>
+        <ul>
+          <li>저장된 JPEG 를 포토몬·찍스·스냅스 앱이나 키오스크에 4×6 으로 업로드합니다.</li>
+          <li>옵션은 <b>"꽉 채움"이 아니라 "여백 없이 맞춤/노컷"</b> 을 고르세요. 바깥 3mm 는 잘려도 괜찮게 만들어져 있습니다.</li>
+          <li>가위로 자를 때는 각 폴라로이드의 흰 테두리 경계를 따라 자르면 됩니다.</li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- 클라우드 보관함 -->
+    <section id="cloudSection" class="card" hidden>
+      <div class="row between">
+        <h2>내 보관함</h2>
+        <button id="refreshCloud" class="btn ghost small">새로고침</button>
+      </div>
+      <ul id="cloudList" class="cloud"></ul>
+    </section>
+  </main>
+
+  <!-- 크롭 편집 -->
+  <dialog id="cropDialog">
+    <h3>잘라낼 위치</h3>
+    <canvas id="cropCanvas"></canvas>
+    <label class="range">확대 <input id="cropZoom" type="range" min="1" max="3" step="0.01" /></label>
+    <p class="hint">사진을 드래그해서 정사각 안에 들어갈 부분을 맞추세요.</p>
+    <div class="actions">
+      <button id="cropReset" class="btn ghost">초기화</button>
+      <button id="cropDone" class="btn primary">완료</button>
+    </div>
+  </dialog>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
