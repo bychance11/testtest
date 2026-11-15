@@ -84,7 +84,6 @@
       <div class="actions">
         <button id="saveBtn" class="btn primary">사진앱에 저장 / 공유</button>
         <button id="printBtn" class="btn">집 프린터로 인쇄</button>
-        <button id="cloudBtn" class="btn" hidden>클라우드에 보관</button>
       </div>
       <p id="status" class="muted small"></p>
       <div id="fallbackWrap" hidden>
@@ -101,14 +100,16 @@
       </details>
     </section>
 
-    <!-- 클라우드 보관함 -->
-    <section id="cloudSection" class="card" hidden>
+    <!-- 최근 만든 인쇄물 (이 기기 안에만 저장) -->
+    <section id="recentSection" class="card">
       <div class="row between">
-        <h2>내 보관함</h2>
-        <button id="refreshCloud" class="btn ghost small">새로고침</button>
+        <h2>최근 만든 인쇄물</h2>
+        <button id="clearRecent" class="btn ghost small" hidden>모두 삭제</button>
       </div>
-      <ul id="cloudList" class="cloud"></ul>
+      <p class="hint" style="margin:0 0 8px">저장·인쇄할 때 자동으로 이 기기 안에 보관됩니다(최근 20개). 서버로 보내지 않아요.</p>
+      <ul id="recentList" class="cloud"></ul>
     </section>
+
   </main>
 
   <!-- 크롭 편집 -->

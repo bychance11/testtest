@@ -5,7 +5,7 @@ import { loadPhotos } from "./image-loader";
 import { renderFinalJpeg, renderPreview } from "./render";
 import { withDpi } from "./jpeg-dpi";
 import { filename, printBlob, saveOrShare } from "./export";
-import { cloudEnabled, deleteSheet, listSheets, signedUrl, uploadSheet } from "./supabase";
+import { clearSheets, deleteSheet, listSheets, saveSheet, type SavedSheet } from "./storage";
 import { setupInstallGuide } from "./install-guide";
 import { setupCropEditor } from "./ui/CropEditor";
 import type { Dpi, EmptyMode, Orientation } from "./types";
@@ -26,7 +26,6 @@ const sizeInfo = $("sizeInfo");
 const status = $("status");
 const saveBtn = $<HTMLButtonElement>("saveBtn");
 const printBtn = $<HTMLButtonElement>("printBtn");
-const cloudBtn = $<HTMLButtonElement>("cloudBtn");
 const fallbackWrap = $("fallbackWrap");
 const fallbackImg = $<HTMLImageElement>("fallbackImg");
 
@@ -113,11 +112,13 @@ async function buildFinal(): Promise<Blob> {
   const L = currentLayout();
   const slots = assignSlots(L.cells.length);
   const raw = await renderFinalJpeg(L, slots, options);
-  return withDpi(raw, options.dpi);
+  const blob = await withDpi(raw, options.dpi);
+  saveSheet(blob, options, getState().photos.length).then(renderRecent).catch((e) => console.warn("보관 실패", e));
+  return blob;
 }
 
 function busy(on: boolean, msg = "") {
-  [saveBtn, printBtn, cloudBtn].forEach((b) => (b.disabled = on));
+  [saveBtn, printBtn].forEach((b) => (b.disabled = on));
   status.textContent = msg;
 }
 
@@ -145,36 +146,29 @@ printBtn.addEventListener("click", async () => {
   } catch (e) { busy(false, `실패: ${(e as Error).message}`); }
 });
 
-if (cloudEnabled) {
-  cloudBtn.hidden = false;
-  $("cloudSection").hidden = false;
-  cloudBtn.addEventListener("click", async () => {
-    if (!getState().photos.length) return (status.textContent = "먼저 사진을 골라주세요.");
-    busy(true, "업로드 중…");
-    try {
-      const blob = await buildFinal();
-      await uploadSheet(blob, getState().options, getState().photos.length);
-      busy(false, "보관함에 저장했습니다.");
-      refreshCloud();
-    } catch (e) { busy(false, `업로드 실패: ${(e as Error).message}`); }
-  });
-  $("refreshCloud").addEventListener("click", refreshCloud);
-  refreshCloud();
+// ---------- 최근 만든 인쇄물 (IndexedDB) ----------
+const recentList = $("recentList");
+const clearRecent = $<HTMLButtonElement>("clearRecent");
+clearRecent.addEventListener("click", async () => { if (confirm("보관한 인쇄물을 모두 삭제할까요?")) { await clearSheets(); renderRecent(); } });
+
+async function reshare(item: SavedSheet) {
+  const r = await saveOrShare(item.blob, filename(item.preset, item.dpi));
+  if (r === "fallback") { fallbackImg.src = URL.createObjectURL(item.blob); fallbackWrap.hidden = false; }
 }
 
-async function refreshCloud() {
-  const ul = $("cloudList");
-  try {
-    const rows = await listSheets();
-    ul.innerHTML = rows.length ? "" : `<li class="muted">아직 보관한 인쇄물이 없어요.</li>`;
-    for (const r of rows) {
-      const li = document.createElement("li");
-      const when = new Date(r.created_at).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" });
-      li.innerHTML = `<span>${when} · ${r.preset}장 · ${r.orientation === "portrait" ? "세로" : "가로"} · ${r.dpi}dpi</span>
-        <span class="row"><button class="btn small" data-open>열기</button><button class="btn ghost small" data-del>삭제</button></span>`;
-      li.querySelector("[data-open]")!.addEventListener("click", async () => window.open(await signedUrl(r.storage_path), "_blank"));
-      li.querySelector("[data-del]")!.addEventListener("click", async () => { if (confirm("삭제할까요?")) { await deleteSheet(r); refreshCloud(); } });
-      ul.appendChild(li);
-    }
-  } catch (e) { ul.innerHTML = `<li class="muted">불러오기 실패: ${(e as Error).message}</li>`; }
+async function renderRecent() {
+  let rows: SavedSheet[] = [];
+  try { rows = await listSheets(); } catch { rows = []; }
+  clearRecent.hidden = rows.length === 0;
+  recentList.innerHTML = rows.length ? "" : `<li class="muted">아직 만든 인쇄물이 없어요.</li>`;
+  for (const r of rows) {
+    const li = document.createElement("li");
+    const when = new Date(r.createdAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" });
+    li.innerHTML = `<span>${when} · ${r.preset}장 · ${r.orientation === "portrait" ? "세로" : "가로"} · ${r.dpi}dpi</span>
+      <span class="row"><button class="btn small" data-open>저장/공유</button><button class="btn ghost small" data-del>삭제</button></span>`;
+    li.querySelector("[data-open]")!.addEventListener("click", () => reshare(r));
+    li.querySelector("[data-del]")!.addEventListener("click", async () => { if (confirm("삭제할까요?")) { await deleteSheet(r.id); renderRecent(); } });
+    recentList.appendChild(li);
+  }
 }
+renderRecent();
