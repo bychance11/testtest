@@ -1,6 +1,6 @@
 import type { Layout } from "./layout";
 import type { Photo, SheetOptions } from "./types";
-import { drawCutLines, drawPolaroid } from "./polaroid";
+import { drawCutLines, drawPolaroid, drawRulerTicks } from "./polaroid";
 
 type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
@@ -14,6 +14,7 @@ export function drawSheet(ctx: Ctx, L: Layout, slots: (Photo | null)[], opt: She
   ctx.fillRect(0, 0, L.pageW, L.pageH);
   L.cells.forEach((c, i) => drawPolaroid(ctx, L, c.x, c.y, slots[i] ?? null, opt));
   if (opt.showCutLines) drawCutLines(ctx, L);
+  if (opt.rulerTicks) drawRulerTicks(ctx, L);
   ctx.restore();
 }
 
